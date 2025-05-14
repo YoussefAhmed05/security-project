@@ -67,8 +67,7 @@ const formatCryptoAnalysisPrompt = (
     
     return `${index + 1}. ${algo.name} (${keyDisplay})`;
   }).join('\n');
-  
-  return `
+    return `
 You are a cryptography expert providing an analysis of an encryption pipeline used for educational purposes.
 
 Format your response to be visually appealing with clear sections, bullet points, and emojis where appropriate.

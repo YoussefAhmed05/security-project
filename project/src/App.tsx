@@ -190,7 +190,7 @@ const AppContent: React.FC = () => {
                 onClick={() => setShowAnalysis(!showAnalysis)} 
                 className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md transition-colors duration-200 flex items-center gap-2">
                 <Sparkles size={18} />
-                {showAnalysis ? 'Hide AI Analysis' : 'Show AI Analysis'}
+                {showAnalysis ? 'Hide AI CryptoAnalysis' : 'Run AI CryptoAnalysis'}
               </button>
             </div>
             

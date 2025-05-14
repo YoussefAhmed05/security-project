@@ -43,12 +43,30 @@ const formatAnalysis = (text: string): string => {
   // Style bullet points
   formattedText = formattedText.replace(/^- (.*?)$/gm, '<li class="ml-4 mb-1">$1</li>');
   formattedText = formattedText.replace(/(<li.*<\/li>(\n|$))+/g, '<ul class="list-disc my-2 pl-2">$&</ul>');
-  
-  // Handle paragraphs
+    // Handle paragraphs
   formattedText = formattedText.replace(/^(?!(#|<[a-zA-Z])).+$/gm, '<p class="mb-2">$&</p>');
   
   // Convert newlines to line breaks
   formattedText = formattedText.replace(/\n(?!<)/g, '<br>');
+  // Improve display of plaintext and ciphertext
+  formattedText = formattedText.replace(
+    /(?:PLAINTEXT|CIPHERTEXT):\s*"([^"]+)"/gi, 
+    (match, text) => {
+      // Create a properly formatted display for plaintext/ciphertext with scrolling
+      const label = match.split(':')[0];
+      // Display full text with proper word wrapping
+      
+      return `<div class="mb-3">
+        <strong class="text-blue-600 dark:text-blue-400">${label}:</strong>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded p-3 mt-1 overflow-x-auto max-w-full">
+          <code class="text-sm font-mono break-all whitespace-normal overflow-wrap-anywhere max-w-full block">${text}</code>
+          ${text.length > 40 ? 
+            `<div class="text-xs text-gray-500 mt-1">(${text.length} characters)</div>` : 
+            ''}
+        </div>
+      </div>`;
+    }
+  );
   
   // Highlight key terms
   formattedText = formattedText
@@ -69,19 +87,55 @@ const CryptoAnalysis: React.FC<CryptoAnalysisProps> = ({ isVisible, isProcessCom
   const [analysis, setAnalysis] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
+  
+  // Track algorithm configuration to detect changes
+  const [lastConfig, setLastConfig] = useState<{
+    inputText: string;
+    outputText: string;
+    algorithmIds: string;
+    keys: string;
+    mode: string;
+  } | null>(null);
+  
+  // No need to reset analysis when visibility changes
+  // This allows preserving the analysis when toggling visibility
+  
+  // Reset analysis when inputs change
   useEffect(() => {
-    // Reset states when visibility changes
-    if (!isVisible) {
-      setAnalysis('');
-      setError(null);
+    // Create a string representation of the current configuration
+    const currentConfig = {
+      inputText,
+      outputText,
+      algorithmIds: JSON.stringify(algorithmOrder.map(a => a.id)),
+      keys: JSON.stringify(keys),
+      mode
+    };
+    
+    const configStr = JSON.stringify(currentConfig);
+    const lastConfigStr = lastConfig ? JSON.stringify(lastConfig) : "";
+    
+    // If configuration has changed, reset the analysis state
+    if (lastConfigStr && configStr !== lastConfigStr) {
+      setHasRunAnalysis(false); // Reset to indicate we need a new analysis
     }
-  }, [isVisible]);
+    
+    // Update last config
+    setLastConfig(currentConfig);
+  }, [inputText, outputText, algorithmOrder, keys, mode]);
+  
+  // Track whether we need to run a new analysis
+  const [hasRunAnalysis, setHasRunAnalysis] = useState<boolean>(false);
   
   // Run analysis when processing completes and component is visible
   useEffect(() => {
     const runAnalysis = async () => {
-      if (isVisible && isProcessComplete && outputText && algorithmOrder.length > 0) {
+      // Only run analysis if:
+      // 1. It's visible
+      // 2. Process is complete
+      // 3. We have output
+      // 4. We have algorithms
+      // 5. We haven't already run an analysis OR something has changed since last run
+      if (isVisible && isProcessComplete && outputText && algorithmOrder.length > 0 && !hasRunAnalysis) {
         setIsLoading(true);
         setError(null);
         
@@ -104,6 +158,7 @@ const CryptoAnalysis: React.FC<CryptoAnalysisProps> = ({ isVisible, isProcessCom
             setError(result.error);
           } else {
             setAnalysis(result.analysis);
+            setHasRunAnalysis(true); // Mark that we've run the analysis
           }
         } catch (error) {
           setError('Failed to perform cryptographic analysis');
@@ -115,21 +170,18 @@ const CryptoAnalysis: React.FC<CryptoAnalysisProps> = ({ isVisible, isProcessCom
     };
     
     runAnalysis();
-  }, [isProcessComplete, isVisible, inputText, outputText, algorithmOrder, keys, mode]);
+  }, [isProcessComplete, isVisible, inputText, outputText, algorithmOrder, keys, mode, hasRunAnalysis]);
   
   if (!isVisible) return null;
   
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg my-6 bg-opacity-80 backdrop-blur-md transition-all duration-300 ease-in-out border border-purple-100 dark:border-purple-900">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg my-6 bg-opacity-80 backdrop-blur-md transition-all duration-300 ease-in-out border border-purple-100 dark:border-purple-900 max-w-full">
       <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-gray-700 pb-3">
         <h2 className="text-lg font-medium text-gray-800 dark:text-gray-200 flex items-center">
           <Zap className="text-purple-600 dark:text-purple-400 mr-2" size={20} />
           <span>AI Cryptographic Analysis</span>
         </h2>
-        <div className="flex items-center">
-          <Shield className="text-blue-500 dark:text-blue-400 w-4 h-4 mr-1" />
-          <span className="text-xs text-gray-500 dark:text-gray-400">Powered by Google Gemini</span>
-        </div>
+    
       </div>
       
       {isLoading && (
@@ -168,11 +220,14 @@ const CryptoAnalysis: React.FC<CryptoAnalysisProps> = ({ isVisible, isProcessCom
           </div>
         </div>
       )}
-      
-      {!isLoading && !error && analysis && (
+        {!isLoading && !error && analysis && (
         <div className="prose dark:prose-invert max-w-none">
           <div 
-            className="analysis-content text-gray-700 dark:text-gray-300 p-2"
+            className="analysis-content text-gray-700 dark:text-gray-300 p-2 overflow-hidden"
+            style={{ 
+              wordBreak: 'break-word', 
+              overflowWrap: 'break-word'
+            }}
             dangerouslySetInnerHTML={{ __html: formatAnalysis(analysis) }}
           />
         </div>
