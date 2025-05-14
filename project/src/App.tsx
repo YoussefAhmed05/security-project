@@ -6,6 +6,7 @@ import TextInput from './components/TextInput';
 import AlgorithmSelector from './components/AlgorithmSelector';
 import KeyInput from './components/KeyInput';
 import ProcessVisualization from './components/ProcessVisualization';
+import CryptoAnalysis from './components/CryptoAnalysis';
 import ThemeToggle from './components/ThemeToggle';
 import { algorithmData, getExampleText } from './utils/algorithmData';
 
@@ -28,6 +29,8 @@ const AppContent: React.FC = () => {
   const [isInputCollapsed, setIsInputCollapsed] = React.useState(false);
   const [isOutputCollapsed, setIsOutputCollapsed] = React.useState(false);
   const [showValidationErrors, setShowValidationErrors] = React.useState(false);
+  const [showAnalysis, setShowAnalysis] = React.useState(false);
+  const [isProcessComplete, setIsProcessComplete] = React.useState(false);
   
   const checkAllKeysValid = () => {
     return algorithmOrder.every(algo => {
@@ -39,15 +42,23 @@ const AppContent: React.FC = () => {
   const handleResetAll = () => {
     resetAll();
     setShowValidationErrors(false);
+    setIsProcessComplete(false);
   };
   
   const handleToggleMode = () => {
     toggleMode();
     setShowValidationErrors(false);
+    setIsProcessComplete(false);
   };
   
   const handleLoadExampleText = () => {
     setInputText(getExampleText());
+    setIsProcessComplete(false);
+  };
+  
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+    setIsProcessComplete(false);
   };
   
   return (
@@ -114,7 +125,10 @@ const AppContent: React.FC = () => {
                 <AlgorithmSelector
                   availableAlgorithms={algorithmData}
                   selectedAlgorithms={algorithmOrder}
-                  onOrderChange={setAlgorithmOrder}
+                  onOrderChange={(newOrder) => {
+                    setAlgorithmOrder(newOrder);
+                    setIsProcessComplete(false);
+                  }}
                 />
                 
                 {/* Key Inputs for Selected Algorithms */}
@@ -129,7 +143,10 @@ const AppContent: React.FC = () => {
                         key={algo.id}
                         algorithmId={algo.id}
                         value={keys[algo.id as keyof typeof keys]}
-                        onChange={(newKey) => updateKey(algo.id, newKey)}
+                        onChange={(newKey) => {
+                          updateKey(algo.id, newKey);
+                          setIsProcessComplete(false);
+                        }}
                         showValidationErrors={showValidationErrors}
                       />
                     ))}
@@ -144,12 +161,15 @@ const AppContent: React.FC = () => {
             {/* Input Text */}
             <TextInput
               value={inputText}
-              onChange={setInputText}
+              onChange={handleInputChange}
               label={mode === 'encrypt' ? 'Plaintext' : 'Ciphertext'}
               placeholder={mode === 'encrypt' ? 'Enter text to encrypt...' : 'Enter text to decrypt...'}
               isCollapsed={isInputCollapsed}
               onToggleCollapse={() => setIsInputCollapsed(!isInputCollapsed)}
-              onReset={() => setInputText('')}
+              onReset={() => {
+                setInputText('');
+                setIsProcessComplete(false);
+              }}
             />
             
             {/* Processing Visualization */}
@@ -160,8 +180,22 @@ const AppContent: React.FC = () => {
                 keys={keys}
                 mode={mode}
                 onResult={setOutputText}
+                onProcessComplete={() => setIsProcessComplete(true)}
               />
             )}
+            
+            {/* AI Cryptanalysis Button */}
+            <div className="flex justify-end mt-6">
+              <button 
+                onClick={() => setShowAnalysis(!showAnalysis)} 
+                className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md transition-colors duration-200 flex items-center gap-2">
+                <Sparkles size={18} />
+                {showAnalysis ? 'Hide AI Analysis' : 'Show AI Analysis'}
+              </button>
+            </div>
+            
+            {/* Cryptanalysis Component */}
+            <CryptoAnalysis isVisible={showAnalysis} isProcessComplete={isProcessComplete} />
             
             {/* Output Text */}
             <TextInput

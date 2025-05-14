@@ -8,6 +8,7 @@ interface ProcessVisualizationProps {
   keys: AlgorithmKey;
   mode: OperationMode;
   onResult: (result: string) => void;
+  onProcessComplete?: () => void;
 }
 
 interface StepResult {
@@ -23,7 +24,8 @@ const ProcessVisualization: React.FC<ProcessVisualizationProps> = ({
   algorithmOrder,
   keys,
   mode,
-  onResult
+  onResult,
+  onProcessComplete
 }) => {
   const [steps, setSteps] = useState<StepResult[]>([]);
   const [currentAlgorithmIndex, setCurrentAlgorithmIndex] = useState<number>(0);
@@ -206,6 +208,10 @@ const ProcessVisualization: React.FC<ProcessVisualizationProps> = ({
           setFinalResult(output);
           onResult(output);
           setIsProcessing(false);
+          // Notify that the process is complete if callback is provided
+          if (onProcessComplete) {
+            onProcessComplete();
+          }
         } else {
           // Move to the next algorithm after a delay
           animationTimeoutRef.current = setTimeout(() => {
